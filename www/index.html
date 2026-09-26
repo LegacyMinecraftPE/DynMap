@@ -1,0 +1,1320 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>DynMap</title>
+  <style>
+    *,
+    *::before,
+    *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #222;
+      font-family: Arial, sans-serif;
+      font-size: 13px;
+      color: #ddd
+    }
+
+    #toolbar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 36px;
+      background: linear-gradient(#3a3a3a, #2a2a2a);
+      border-bottom: 1px solid #111;
+      display: flex;
+      align-items: center;
+      padding: 0 10px;
+      gap: 12px;
+      z-index: 30;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, .5)
+    }
+
+    #toolbar .logo {
+      font-weight: bold;
+      font-size: 14px;
+      color: #eee;
+      letter-spacing: .5px;
+      margin-right: 6px
+    }
+
+    #toolbar .sep {
+      width: 1px;
+      height: 20px;
+      background: #444
+    }
+
+    #status-wrap {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      color: #aaa
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #c0392b;
+      flex-shrink: 0
+    }
+
+    .dot.ok {
+      background: #27ae60
+    }
+
+    .dot.load {
+      background: #f39c12
+    }
+
+    #toolbar-right {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      color: #aaa
+    }
+
+    #lu {
+      font-size: 10px;
+      color: #666
+    }
+
+    #toolbar select,
+    #toolbar button {
+      background: #3a3a3a;
+      border: 1px solid #555;
+      color: #ccc;
+      font-size: 11px;
+      padding: 2px 6px;
+      border-radius: 3px;
+      cursor: pointer;
+      height: 22px;
+      outline: none
+    }
+
+    #toolbar select:hover,
+    #toolbar button:hover {
+      background: #484848
+    }
+
+    #panel {
+      position: fixed;
+      top: 36px;
+      left: 0;
+      bottom: 0;
+      width: 200px;
+      background: #2b2b2b;
+      border-right: 2px solid #111;
+      display: flex;
+      flex-direction: column;
+      z-index: 20;
+      box-shadow: 2px 0 8px rgba(0, 0, 0, .4)
+    }
+
+    .phead {
+      padding: 7px 10px;
+      font-size: 10px;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #888;
+      background: #252525;
+      border-bottom: 1px solid #111
+    }
+
+    #plist {
+      flex: 1;
+      overflow-y: auto
+    }
+
+    .prow {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      border-bottom: 1px solid #222;
+      cursor: pointer;
+      transition: background .1s
+    }
+
+    .prow:hover {
+      background: #333
+    }
+
+    .prow:active {
+      background: #3a3a3a
+    }
+
+    .pdot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: #e74c3c;
+      flex-shrink: 0;
+      box-shadow: 0 0 4px rgba(231, 76, 60, .6)
+    }
+
+    .pname {
+      font-size: 12px;
+      color: #ddd;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis
+    }
+
+    .pxyz {
+      font-size: 10px;
+      color: #666;
+      margin-top: 1px
+    }
+
+    .no-p {
+      padding: 8px 10px;
+      font-size: 11px;
+      color: #555
+    }
+
+    #world-info {
+      padding: 7px 10px;
+      border-top: 1px solid #111;
+      font-size: 10px;
+      color: #555;
+      background: #252525
+    }
+
+    #cw {
+      position: fixed;
+      top: 36px;
+      left: 200px;
+      right: 0;
+      bottom: 0
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      image-rendering: pixelated;
+      cursor: grab;
+      touch-action: none
+    }
+
+    canvas.drag {
+      cursor: grabbing
+    }
+
+    #hud {
+      position: fixed;
+      bottom: 8px;
+      right: 8px;
+      background: rgba(0, 0, 0, .7);
+      border: 1px solid #444;
+      padding: 4px 9px;
+      font-size: 11px;
+      color: #aaa;
+      border-radius: 3px;
+      z-index: 25;
+      pointer-events: none;
+      font-family: monospace
+    }
+
+    #zoom-ctrl {
+      position: fixed;
+      bottom: 36px;
+      right: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      z-index: 25
+    }
+
+    #zoom-ctrl button {
+      width: 28px;
+      height: 28px;
+      background: #3a3a3a;
+      border: 1px solid #555;
+      color: #ccc;
+      font-size: 16px;
+      cursor: pointer;
+      border-radius: 3px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, .4)
+    }
+
+    #zoom-ctrl button:hover {
+      background: #484848
+    }
+
+    #zoom-ctrl button:active {
+      background: #555
+    }
+
+    #zval {
+      text-align: center;
+      font-size: 10px;
+      color: #666;
+      padding: 2px 0
+    }
+
+    @media(max-width:600px) {
+      #panel {
+        display: none
+      }
+
+      #cw {
+        left: 0
+      }
+
+      #toolbar .logo {}
+    }
+
+    .ss-opt:hover {
+      background: #3a3a3a;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="toolbar">
+    <span class="logo">DynMap</span>
+    <div class="sep"></div>
+    <div id="status-wrap">
+      <div class="dot load" id="dot"></div>
+      <span id="stxt">Loading Textures...</span>
+    </div>
+    <div class="sep"></div>
+    <span id="wname" style="font-size:11px;color:#888"></span>
+    <select id="world-select" style="display:none; margin-left: 5px; background: #3a3a3a; border: 1px solid #555; color: #ccc; border-radius: 4px; padding: 2px 5px; font-size: 11px; outline: none;"></select>
+    <div id="toolbar-right">
+      <select id="vmode">
+        <option value="3d">3D Isometric</option>
+        <option value="2d">2D Top-Down</option>
+      </select>
+      <span id="lu"></span>
+      <button id="btn-follow">Follow Players</button>
+      <div style="position: relative; display: inline-block; margin-left: 5px;">
+        <button id="btn-screenshot">Screenshot ▾</button>
+        <div id="screenshot-menu"
+          style="display: none; position: absolute; top: 100%; right: 0; background: #252525; border: 1px solid #444; border-radius: 3px; z-index: 100; margin-top: 4px; padding: 4px 0; box-shadow: 0 4px 12px rgba(0,0,0,0.5);">
+          <div class="ss-opt" data-type="view"
+            style="padding: 6px 16px; font-size: 11px; color: #ccc; cursor: pointer; white-space: nowrap;">Current View
+          </div>
+          <div class="ss-opt" data-type="full"
+            style="padding: 6px 16px; font-size: 11px; color: #ccc; cursor: pointer; white-space: nowrap;">Entire Map
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="panel">
+    <div class="phead">Players <span id="pc" style="color:#aaa"></span></div>
+    <div id="plist"></div>
+    <div id="world-info"></div>
+  </div>
+  <div id="cw">
+    <canvas id="cv"></canvas>
+  </div>
+  <div id="zoom-ctrl">
+    <button id="zp">+</button>
+    <div id="zval">2x</div>
+    <button id="zm">−</button>
+  </div>
+  <div id="hud">X — &nbsp; Z —</div>
+  <script>
+    var URL_ = "mapdata.json", INTERVAL = 5000;
+    var canvas = document.getElementById("cv");
+    var ctx = canvas.getContext("2d", { alpha: false });
+    var data = null;
+    var zoom = 2;
+    var viewCX = 128, viewCZ = 128;
+    var panX = 0, panY = 0;
+    var drag = false, dsx = 0, dsy = 0, dpx = 0, dpy = 0;
+    var followPlayers = true;
+    var firstLoad = true;
+    var viewMode = "3d";
+    var drawList = [];
+
+    var mapCanvas2D = document.createElement("canvas");
+    mapCanvas2D.width = 4096; mapCanvas2D.height = 4096;
+    var mCtx2D = mapCanvas2D.getContext("2d");
+
+    var map3D = [];
+    var MAP3D_TILE_SIZE = 2048;
+    for (var i = 0; i < 4; i++) {
+      map3D[i] = [];
+      for (var j = 0; j < 4; j++) {
+        var c = document.createElement("canvas");
+        c.width = MAP3D_TILE_SIZE; c.height = MAP3D_TILE_SIZE;
+        map3D[i][j] = c;
+      }
+    }
+
+    var palette = { 1: [120, 120, 120], 2: [115, 185, 75], 3: [134, 96, 67], 4: [100, 100, 100], 5: [157, 128, 79], 6: [80, 140, 40], 7: [50, 50, 50], 8: [65, 105, 225], 9: [65, 105, 225], 10: [255, 80, 0], 11: [255, 80, 0], 12: [219, 211, 160], 13: [136, 126, 126], 14: [160, 140, 50], 15: [160, 160, 160], 16: [30, 30, 30], 17: [104, 83, 50], 18: [70, 130, 40], 19: [195, 195, 75], 20: [230, 240, 255], 21: [50, 80, 200], 22: [50, 80, 200], 24: [219, 211, 160], 26: [200, 50, 50], 27: [150, 110, 80], 30: [230, 230, 230], 35: [220, 220, 220], 37: [255, 230, 0], 38: [0, 120, 255], 39: [180, 140, 100], 40: [200, 50, 50], 41: [230, 200, 50], 42: [220, 220, 220], 43: [150, 150, 150], 44: [150, 150, 150], 45: [150, 60, 50], 46: [200, 80, 80], 47: [110, 85, 55], 48: [100, 130, 100], 49: [40, 40, 60], 50: [255, 200, 0], 51: [255, 200, 0], 52: [40, 60, 80], 53: [157, 128, 79], 54: [125, 90, 40], 56: [80, 210, 230], 57: [80, 210, 230], 59: [140, 180, 50], 60: [90, 60, 40], 61: [110, 110, 110], 62: [110, 110, 110], 63: [157, 128, 79], 64: [130, 100, 50], 65: [130, 100, 50], 66: [150, 110, 80], 67: [105, 105, 105], 68: [157, 128, 79], 71: [200, 200, 200], 73: [180, 30, 30], 74: [180, 30, 30], 75: [200, 0, 0], 76: [255, 0, 0], 78: [245, 245, 245], 79: [140, 185, 255], 80: [245, 245, 245], 81: [40, 120, 40], 82: [160, 160, 180], 83: [80, 200, 80], 85: [157, 128, 79], 86: [220, 120, 40], 87: [130, 60, 60], 89: [220, 220, 150], 91: [220, 120, 40], 92: [230, 180, 180], 96: [130, 100, 50], 98: [115, 115, 115], 101: [200, 200, 200], 102: [230, 240, 255], 103: [140, 180, 80], 107: [157, 128, 79], 108: [170, 86, 62], 109: [115, 115, 115], 112: [70, 40, 50], 113: [70, 40, 50], 114: [70, 40, 50], 128: [219, 211, 160], 134: [104, 83, 50], 135: [190, 170, 130], 136: [140, 100, 70], 139: [100, 100, 100], 155: [230, 225, 220], 156: [230, 225, 220], 157: [157, 128, 79], 158: [157, 128, 79], 170: [200, 180, 50], 173: [30, 30, 30], 244: [140, 60, 60], 245: [120, 120, 120], 246: [250, 50, 50], 247: [100, 200, 250] };
+
+
+    var errorTexture = document.createElement("canvas");
+    errorTexture.width = 16;
+    errorTexture.height = 16;
+    var eCtx = errorTexture.getContext("2d");
+    eCtx.fillStyle = "#000000";
+    eCtx.fillRect(0, 0, 16, 16);
+    eCtx.fillStyle = "#ff00ff";
+    eCtx.fillRect(0, 0, 8, 8);
+    eCtx.fillRect(8, 8, 8, 8);
+
+    function getTextureFile(id, meta, face) {
+      id = Number(id);
+      meta = Number(meta);
+      if (id === 78) return "snow_0.png";
+      if (id === 35 || id === 171) {
+        return "wool_" + (meta & 15) + ".png";
+      }
+      if (id === 17) {
+        var m = meta & 3;
+        if (m === 1) return face === "s" ? "log_2.png" : "log_3.png";
+        if (m === 2) return face === "s" ? "log_4.png" : "log_5.png";
+        if (m === 3) return face === "s" ? "log_6.png" : "log_7.png";
+        return face === "s" ? "log_0.png" : "log_1.png";
+      }
+      if (id === 18) {
+        var m = meta & 3;
+        if (m === 1) return "leaves_1.png";
+        if (m === 2) return "leaves_2.png";
+        if (m === 3) return "leaves_3.png";
+        return "leaves_0.png";
+      }
+      if (id === 5) {
+        var m = meta & 3;
+        if (m === 1) return "planks_1.png";
+        if (m === 2) return "planks_2.png";
+        if (m === 3) return "planks_3.png";
+        return "planks_0.png";
+      }
+      if (id === 126 || id === 157 || id === 158) {
+        var m = meta & 7;
+        if (m === 1) return "planks_1.png";
+        if (m === 2) return "planks_2.png";
+        if (m === 3) return "planks_3.png";
+        return "planks_0.png";
+      }
+      if (id === 43 || id === 44) {
+        var m = meta & 7;
+        if (m === 0) return face === "s" ? "stone_slab_0.png" : "stone_slab_1.png";
+        if (m === 1) return face === "t" ? "sandstone_1.png" : (face === "b" ? "sandstone_2.png" : "sandstone_0.png");
+        if (m === 2) return "planks_0.png";
+        if (m === 3) return "cobblestone_0.png";
+        if (m === 4) return "brick_0.png";
+        if (m === 5) return "stonebrick_0.png";
+        if (m === 6) return (face === "t" || face === "b") ? "quartz_block_1.png" : "quartz_block_0.png";
+        if (m === 7) return "nether_brick_0.png";
+        return face === "s" ? "stone_slab_0.png" : "stone_slab_1.png";
+      }
+      if (id === 98) {
+        if (meta === 1) return "stonebrick_1.png";
+        if (meta === 2) return "stonebrick_2.png";
+        if (meta === 3) return "stonebrick_3.png";
+        return "stonebrick_0.png";
+      }
+      if (id === 53) return "planks_0.png";
+      if (id === 67) return "cobblestone_0.png";
+      if (id === 108) return "brick_0.png";
+      if (id === 109) return "stonebrick_0.png";
+      if (id === 114) return "nether_brick_0.png";
+      if (id === 128) return face === "t" ? "sandstone_1.png" : (face === "b" ? "sandstone_2.png" : "sandstone_0.png");
+      if (id === 134) return "planks_1.png";
+      if (id === 135) return "planks_2.png";
+      if (id === 136) return "planks_3.png";
+      if (id === 156) return "quartz_block_0.png";
+      if (id === 85 || id === 107) return "planks_" + (meta & 3) + ".png";
+      if (id === 113) return "nether_brick_0.png";
+      if (id === 139) return "cobblestone_0.png";
+      if (id === 27) return (meta & 8) ? "rail_golden_powered_0.png" : "rail_golden_0.png";
+      if (id === 28) return "rail_detector_0.png";
+      if (id === 66) return "rail_normal_0.png";
+      if (id === 157) return "rail_activator_0.png";
+      if (id === 64) return "door_0.png";
+      if (id === 71) return "door_1.png";
+      if (id === 92) {
+        if (face === "t") return "cake_top_0.png";
+        if (face === "b") return "cake_bottom_0.png";
+        return "cake_side_0.png";
+      }
+      if (id === 6) {
+        return "sapling_" + (meta & 3) + ".png";
+      }
+      if (id === 31) return "tallgrass_" + (meta & 3) + ".png";
+      if (id === 32) return "tallgrass_0.png";
+      if (id === 37) return "flower_dandelion_0.png";
+      if (id === 38) return "flower_rose_blue_0.png";
+      if (id === 39) return "mushroom_brown_0.png";
+      if (id === 40) return "mushroom_red_0.png";
+      if (id === 50 || id === 51) return "torch_on.png";
+      if (id === 75) return "redstone_torch_off_0.png";
+      if (id === 76) return "redstone_torch_on_0.png";
+      if (id === 59) {
+        return "wheat_stage_x_" + (meta & 7) + ".png";
+      }
+      if (id === 141) {
+        var m = meta & 7;
+        return "carrots_stage_x_" + (m > 3 ? 3 : m) + ".png";
+      }
+      if (id === 142) {
+        var m = meta & 7;
+        return "potatoes_stage_x_" + (m > 3 ? 3 : m) + ".png";
+      }
+      if (id === 244) {
+        var m = meta & 7;
+        return "beetroot_stage_x_" + (m > 3 ? 3 : m) + ".png";
+      }
+      if (id === 60) {
+        return face === "t" ? "farmland.png" : "dirt_0.png";
+      }
+      if (id === 104) {
+        return "pumpkin_stem_" + (meta > 0 ? 1 : 0) + ".png";
+      }
+      if (id === 105) {
+        return "melon_stem_" + (meta > 0 ? 1 : 0) + ".png";
+      }
+      if (id === 65) return "ladder_0.png";
+      if (id === 83) return "reeds_0.png";
+      if (id === 106) return "vine_0.png";
+      if (id === 63 || id === 68) return "planks_0.png";
+      if (id === 26) {
+        if (face === "t") return (meta & 8) ? "bed_2.png" : "bed_1.png";
+        if (face === "s") return "bed_4.png";
+        return "bed_0.png";
+      }
+      if (id === 61 || id === 62) {
+        if (face === "f") return "furnace_0.png";
+        if (face === "s") return "furnace_2.png";
+        return "furnace_3.png";
+      }
+
+      var singleTexs = {
+        1: "stone_0.png",
+        3: "dirt_0.png",
+        4: "cobblestone_0.png",
+        7: "bedrock_0.png",
+        8: "still_water_0.png", 9: "still_water_0.png",
+        10: "still_lava_0.png", 11: "still_lava_0.png",
+        12: "sand_0.png",
+        13: "gravel_0.png",
+        14: "gold_ore_0.png",
+        15: "iron_ore_0.png",
+        16: "coal_ore_0.png",
+        19: "sponge_0.png",
+        20: "glass_0.png",
+        21: "lapis_ore_0.png",
+        22: "lapis_block_0.png",
+        30: "web_0.png",
+        41: "gold_block_0.png",
+        42: "iron_block_0.png",
+        45: "brick_0.png",
+        48: "cobblestone_mossy_0.png",
+        49: "obsidian_0.png",
+        52: "mob_spawner_0.png",
+        56: "diamond_ore_0.png",
+        57: "diamond_block_0.png",
+        73: "redstone_ore_0.png", 74: "redstone_ore_0.png",
+        79: "ice_0.png",
+        80: "snow_0.png",
+        82: "clay_0.png",
+        87: "netherrack_0.png",
+        88: "soul_sand_0.png",
+        89: "glowstone_0.png",
+        95: "glass_0.png",
+        96: "trapdoor.png",
+        99: "mushroom_block_skin_brown_0.png",
+        100: "mushroom_block_skin_red_0.png",
+        101: "iron_bars_0.png",
+        102: "glass_0.png",
+        112: "nether_brick_0.png",
+        121: "end_stone_0.png",
+        129: "emerald_ore_0.png",
+        133: "emerald_block_0.png",
+        152: "redstone_block_0.png",
+        153: "quartz_ore_0.png",
+        159: "clay_0.png",
+        172: "clay_0.png",
+        173: "coal_block_0.png",
+        244: "beetroot_stage_x_3.png",
+        245: "stonecutter_0.png",
+        246: "glowing_obsidian_0.png",
+        247: "reactor_core_stage_x_0.png"
+      };
+
+      if (singleTexs[id]) return singleTexs[id];
+
+      if (id === 2) {
+        if (meta === 1) {
+          if (face === "t") return "snow_0.png";
+          if (face === "s") return "grass_2.png";
+          return "dirt_0.png";
+        }
+        if (face === "t") return "grass_0.png";
+        if (face === "s") return "grass_1.png";
+        return "dirt_0.png";
+      }
+      if (id === 24) {
+        if (face === "t") return "sandstone_1.png";
+        if (face === "b") return "sandstone_2.png";
+        return "sandstone_0.png";
+      }
+      if (id === 46) {
+        if (face === "t") return "tnt_1.png";
+        if (face === "b") return "tnt_2.png";
+        return "tnt_0.png";
+      }
+      if (id === 47) {
+        if (face === "s") return "bookshelf_0.png";
+        return "planks_0.png";
+      }
+      if (id === 54) {
+        if (face === "f") return "chest_inventory_2.png";
+        if (face === "s") return "chest_inventory_1.png";
+        return "chest_inventory_0.png";
+      }
+      if (id === 58) {
+        if (face === "t") return "crafting_table_2.png";
+        if (face === "b") return "planks_0.png";
+        return "crafting_table_0.png";
+      }
+      if (id === 81) {
+        if (face === "s") return "cactus_0.png";
+        return "cactus_1.png";
+      }
+      if (id === 84) {
+        if (face === "s") return "jukebox_side_0.png";
+        return "jukebox_top_0.png";
+      }
+      if (id === 86 || id === 91) {
+        if (face === "s") return id === 91 ? "pumpkin_2.png" : "pumpkin_0.png";
+        return "pumpkin_1.png";
+      }
+      if (id === 103) {
+        if (face === "s") return "melon_0.png";
+        return "melon_1.png";
+      }
+      if (id === 110 || id === 243) {
+        if (face === "t") return "mycelium_top_0.png";
+        if (face === "s") return "mycelium_side_0.png";
+        return "dirt_0.png";
+      }
+      if (id === 155) {
+        if (face === "t" || face === "b") return "quartz_block_1.png";
+        return "quartz_block_0.png";
+      }
+      if (id === 170) {
+        if (face === "t" || face === "b") return "hayblock_1.png";
+        return "hayblock_0.png";
+      }
+
+      return null;
+    }
+
+    function getColor(id, meta) {
+      id = Number(id);
+      meta = Number(meta);
+      if (id === 8 || id === 9) return [40, 60, 200];
+      if (id === 10 || id === 11) return [220, 80, 20];
+      if (id === 35 || id === 171) {
+        var woolColors = [
+          [221, 221, 221],
+          [219, 125, 62],
+          [179, 80, 188],
+          [107, 138, 201],
+          [177, 166, 39],
+          [65, 174, 56],
+          [208, 132, 153],
+          [64, 64, 64],
+          [154, 161, 161],
+          [46, 110, 137],
+          [126, 52, 191],
+          [46, 56, 141],
+          [79, 50, 31],
+          [53, 70, 27],
+          [150, 52, 48],
+          [25, 22, 22]
+        ];
+        return woolColors[meta & 15] || [221, 221, 221];
+      }
+      return palette[id] || [120, 120, 120];
+    }
+
+    var cubeCache = {};
+    var tileCache = {};
+    var loadedImages = {};
+
+    var uniqueTextures = new Set();
+    for (var id = 1; id <= 255; id++) {
+      for (var m = 0; m < 16; m++) {
+        var t = getTextureFile(id, m, "t"); if (t) uniqueTextures.add(t);
+        var s = getTextureFile(id, m, "s"); if (s) uniqueTextures.add(s);
+        var b = getTextureFile(id, m, "b"); if (b) uniqueTextures.add(b);
+      }
+    }
+
+    var texturesLoadedCount = 0;
+    var texturesTotalCount = uniqueTextures.size;
+
+    uniqueTextures.forEach(function (filename) {
+      var img = new Image();
+      img.onload = function () {
+        loadedImages[filename] = img;
+        texturesLoadedCount++;
+        if (texturesLoadedCount === texturesTotalCount) {
+          onAllTexturesLoaded();
+        }
+      };
+      img.onerror = function () {
+        loadedImages[filename] = errorTexture;
+        texturesLoadedCount++;
+        if (texturesLoadedCount === texturesTotalCount) {
+          onAllTexturesLoaded();
+        }
+      };
+      img.src = "textures/" + filename;
+    });
+
+    function onAllTexturesLoaded() {
+      document.getElementById("dot").className = "dot ok";
+      document.getElementById("stxt").textContent = "Connecting...";
+      buildCaches();
+      fetchWorlds(true);
+      setInterval(function() { fetchWorlds(false); }, 120000);
+      setInterval(function() { if (currentWorld) fetchPlayerData(false); }, 5000);
+    }
+
+    function drawFace(cx, imgFace, isTop, id, meta) {
+      id = Number(id);
+      meta = Number(meta);
+      var tCanvas = document.createElement("canvas");
+      tCanvas.width = 16; tCanvas.height = 16;
+      var tctx = tCanvas.getContext("2d");
+      tctx.drawImage(imgFace, 0, 0, 16, 16);
+
+      var tint = null;
+      if (id === 2 && isTop && meta !== 1) tint = "rgb(115,185,75)";
+      else if (id === 18) {
+        var m = meta & 3;
+        if (m === 1) tint = "rgb(97,153,97)";
+        else if (m === 2) tint = "rgb(130,170,100)";
+        else tint = "rgb(70,160,40)";
+      }
+      else if (id === 31 || id === 83 || id === 106 || id === 104 || id === 105) tint = "rgb(115,185,75)";
+
+      if (tint) {
+        tctx.globalCompositeOperation = "multiply";
+        tctx.fillStyle = tint;
+        tctx.fillRect(0, 0, 16, 16);
+        tctx.globalCompositeOperation = "destination-in";
+        tctx.drawImage(imgFace, 0, 0, 16, 16);
+      }
+
+      cx.drawImage(tCanvas, 0, 0, 16, 16, 0, 0, 16, 16);
+    }
+
+    function drawBox(cx, imgT, imgS, imgB, x, z, y, w, d, h, id, meta, imgS2) {
+      if (!imgS2) imgS2 = imgS;
+      id = Number(id);
+      meta = Number(meta);
+      if (h > 0 && imgT) {
+        var p0x = x - z + 16;
+        var p0y = 0.5 * (x + z) + (16 - y - h);
+        var p1x = x + w - z + 16;
+        var p1y = 0.5 * (x + w + z) + (16 - y - h);
+        var p2x = x - z - d + 16;
+        var p2y = 0.5 * (x + z + d) + (16 - y - h);
+        var a = (p1x - p0x) / 16;
+        var b = (p1y - p0y) / 16;
+        var c = (p2x - p0x) / 16;
+        var dCoeff = (p2y - p0y) / 16;
+        var e = p0x;
+        var f = p0y;
+        cx.save();
+        cx.setTransform(a, b, c, dCoeff, e, f);
+        drawFace(cx, imgT, true, id, meta);
+        cx.restore();
+      }
+      if (d > 0 && h > 0 && imgS) {
+        var p0x = x - z - d + 16;
+        var p0y = 0.5 * (x + z + d) + (16 - y - h);
+        var p1x = x + w - z - d + 16;
+        var p1y = 0.5 * (x + w + z + d) + (16 - y - h);
+        var p2x = x - z - d + 16;
+        var p2y = 0.5 * (x + z + d) + (16 - y);
+        var a = (p1x - p0x) / 16;
+        var b = (p1y - p0y) / 16;
+        var c = (p2x - p0x) / 16;
+        var dCoeff = (p2y - p0y) / 16;
+        var e = p0x;
+        var f = p0y;
+        cx.save();
+        cx.setTransform(a, b, c, dCoeff, e, f);
+        drawFace(cx, imgS, false, id, meta);
+        cx.fillStyle = "rgba(0,0,0,0.15)";
+        cx.fillRect(0, 0, 16, 16);
+        cx.restore();
+      }
+      if (w > 0 && h > 0 && imgS2) {
+        var p0x = x + w - z + 16;
+        var p0y = 0.5 * (x + w + z) + (16 - y - h);
+        var p1x = x + w - z - d + 16;
+        var p1y = 0.5 * (x + w + z + d) + (16 - y - h);
+        var p2x = x + w - z + 16;
+        var p2y = 0.5 * (x + w + z) + (16 - y);
+        var a = (p1x - p0x) / 16;
+        var b = (p1y - p0y) / 16;
+        var c = (p2x - p0x) / 16;
+        var dCoeff = (p2y - p0y) / 16;
+        var e = p0x;
+        var f = p0y;
+        cx.save();
+        cx.setTransform(a, b, c, dCoeff, e, f);
+        drawFace(cx, imgS2, false, id, meta);
+        cx.fillStyle = "rgba(0,0,0,0.45)";
+        cx.fillRect(0, 0, 16, 16);
+        cx.restore();
+      }
+    }
+
+    function createCube(id, meta) {
+      id = Number(id);
+      meta = Number(meta);
+      var c = document.createElement("canvas");
+      c.width = 32; c.height = 32;
+      var cx = c.getContext("2d");
+      cx.imageSmoothingEnabled = false;
+
+      if (id === 20 || id === 8 || id === 9 || id === 10 || id === 11 || id === 79 || id === 102 || id === 65 || id === 64 || id === 71 || id === 106 || id === 101 || id === 30 || id === 18) {
+        cx.globalAlpha = 0.65;
+      }
+
+      var texT = getTextureFile(id, meta, "t");
+      if (texT) {
+        var imgT = loadedImages[texT] || errorTexture;
+        var imgS = loadedImages[getTextureFile(id, meta, "s")] || errorTexture;
+        var imgB = loadedImages[getTextureFile(id, meta, "b")] || errorTexture;
+        var texF = getTextureFile(id, meta, "f");
+        var imgF = texF ? loadedImages[texF] || errorTexture : imgS;
+
+        if (id === 63) {
+          drawBox(cx, imgT, imgS, imgB, 7, 7, 0, 2, 2, 8, id, meta, imgF);
+          drawBox(cx, imgT, imgS, imgB, 2, 7, 8, 12, 2, 8, id, meta);
+          return c;
+        }
+
+        if (id === 68) {
+          drawBox(cx, imgT, imgS, imgB, 2, 13, 4, 12, 2, 8, id, meta);
+          return c;
+        }
+
+        if (id === 37 || id === 38 || id === 6 || id === 59 || id === 83 || id === 31 || id === 32 || id === 39 || id === 40 || id === 106 || id === 141 || id === 142 || id === 244 || id === 104 || id === 105) {
+          drawBox(cx, imgT, imgS, imgB, 7, 0, 0, 2, 16, 16, id, meta);
+          drawBox(cx, imgT, imgS, imgB, 0, 7, 0, 16, 2, 16, id, meta);
+          return c;
+        }
+
+        if (id === 26) {
+          drawBox(cx, imgT, imgS, imgB, 0, 0, 0, 16, 16, 9, id, meta);
+          return c;
+        }
+
+        if (id === 53 || id === 67 || id === 108 || id === 109 || id === 114 || id === 128 || id === 134 || id === 135 || id === 136 || id === 156) {
+          var facing = meta & 3;
+          if (facing === 0) {
+            drawBox(cx, imgT, imgS, imgB, 0, 0, 0, 8, 16, 8, id, meta);
+            drawBox(cx, imgT, imgS, imgB, 8, 0, 0, 8, 16, 16, id, meta);
+          } else if (facing === 1) {
+            drawBox(cx, imgT, imgS, imgB, 0, 0, 0, 8, 16, 16, id, meta);
+            drawBox(cx, imgT, imgS, imgB, 8, 0, 0, 8, 16, 8, id, meta);
+          } else if (facing === 2) {
+            drawBox(cx, imgT, imgS, imgB, 0, 0, 0, 16, 8, 8, id, meta);
+            drawBox(cx, imgT, imgS, imgB, 0, 8, 0, 16, 8, 16, id, meta);
+          } else {
+            drawBox(cx, imgT, imgS, imgB, 0, 0, 0, 16, 8, 16, id, meta);
+            drawBox(cx, imgT, imgS, imgB, 0, 8, 0, 16, 8, 8, id, meta);
+          }
+          return c;
+        }
+
+        if (id === 50 || id === 51 || id === 75 || id === 76) {
+          drawBox(cx, imgT, imgS, imgB, 7, 7, 0, 2, 2, 10, id, meta);
+          return c;
+        }
+
+        if (id === 78) {
+          var layers = meta & 7;
+          var snowH = (layers + 1) * 2;
+          drawBox(cx, imgT, imgS, imgB, 0, 0, 0, 16, 16, snowH, id, meta);
+          return c;
+        }
+
+        if (id === 44 || id === 158 || id === 126) {
+          var isTopSlab = (meta & 8) !== 0;
+          var slabY = isTopSlab ? 8 : 0;
+          drawBox(cx, imgT, imgS, imgB, 0, 0, slabY, 16, 16, 8, id, meta);
+          return c;
+        }
+
+        if (id === 96) {
+          var isTop = (meta & 8) !== 0;
+          var yPos = isTop ? 13 : 0;
+          drawBox(cx, imgT, imgS, imgB, 0, 0, yPos, 16, 16, 3, id, meta);
+          return c;
+        }
+
+        if (id === 85 || id === 107) {
+          drawBox(cx, imgT, imgS, imgB, 6, 6, 0, 4, 4, 16, id, meta);
+          if (meta & 1) { drawBox(cx, imgT, imgS, imgB, 6, 0, 11, 4, 6, 2, id, meta); drawBox(cx, imgT, imgS, imgB, 6, 0, 4, 4, 6, 2, id, meta); }
+          if (meta & 2) { drawBox(cx, imgT, imgS, imgB, 6, 10, 11, 4, 6, 2, id, meta); drawBox(cx, imgT, imgS, imgB, 6, 10, 4, 4, 6, 2, id, meta); }
+          if (meta & 4) { drawBox(cx, imgT, imgS, imgB, 0, 6, 11, 6, 4, 2, id, meta); drawBox(cx, imgT, imgS, imgB, 0, 6, 4, 6, 4, 2, id, meta); }
+          if (meta & 8) { drawBox(cx, imgT, imgS, imgB, 10, 6, 11, 6, 4, 2, id, meta); drawBox(cx, imgT, imgS, imgB, 10, 6, 4, 6, 4, 2, id, meta); }
+          return c;
+        }
+
+        if (id === 139) {
+          drawBox(cx, imgT, imgS, imgB, 4, 4, 0, 8, 8, 16, id, meta);
+          drawBox(cx, imgT, imgS, imgB, 0, 5, 0, 16, 6, 13, id, meta);
+          drawBox(cx, imgT, imgS, imgB, 5, 0, 0, 6, 16, 13, id, meta);
+          return c;
+        }
+
+        if (id === 101 || id === 102) {
+          drawBox(cx, imgT, imgS, imgB, 0, 7, 0, 16, 2, 16, id, meta);
+          drawBox(cx, imgT, imgS, imgB, 7, 0, 0, 2, 16, 16, id, meta);
+          return c;
+        }
+
+        if (id === 92) {
+          var bites = meta & 7;
+          var cakeW = 12 - bites * 2;
+          if (cakeW > 0) {
+            drawBox(cx, imgT, imgS, imgB, 2 + bites * 2, 2, 0, cakeW, 12, 8, id, meta);
+          }
+          return c;
+        }
+
+        cx.save(); cx.setTransform(1, 0.5, -1, 0.5, 16, 0); drawFace(cx, imgT, true, id, meta); cx.restore();
+        cx.save(); cx.setTransform(1, 0.5, 0, 1, 0, 8); drawFace(cx, imgS, false, id, meta); cx.fillStyle = "rgba(0,0,0,0.15)"; cx.fillRect(0, 0, 16, 16); cx.restore();
+        cx.save(); cx.setTransform(1, -0.5, 0, 1, 16, 16); drawFace(cx, imgS, false, id, meta); cx.fillStyle = "rgba(0,0,0,0.45)"; cx.fillRect(0, 0, 16, 16); cx.restore();
+      } else {
+        var col = getColor(id, meta);
+        var r = col[0], g = col[1], b = col[2];
+        cx.fillStyle = "rgb(" + Math.floor(r * 0.85) + "," + Math.floor(g * 0.85) + "," + Math.floor(b * 0.85) + ")";
+        cx.beginPath(); cx.moveTo(0, 8); cx.lineTo(16, 16); cx.lineTo(16, 32); cx.lineTo(0, 24); cx.fill();
+        cx.fillStyle = "rgb(" + Math.floor(r * 0.65) + "," + Math.floor(g * 0.65) + "," + Math.floor(b * 0.65) + ")";
+        cx.beginPath(); cx.moveTo(16, 16); cx.lineTo(32, 8); cx.lineTo(32, 24); cx.lineTo(16, 32); cx.fill();
+        cx.fillStyle = "rgb(" + r + "," + g + "," + b + ")";
+        cx.beginPath(); cx.moveTo(16, 0); cx.lineTo(32, 8); cx.lineTo(16, 16); cx.lineTo(0, 8); cx.fill();
+      }
+      return c;
+    }
+
+    function createTile(id, meta) {
+      id = Number(id);
+      meta = Number(meta);
+      var c = document.createElement("canvas");
+      c.width = 16; c.height = 16;
+      var cx = c.getContext("2d");
+      cx.imageSmoothingEnabled = false;
+
+      var texT = getTextureFile(id, meta, "t");
+      if (texT) {
+        var imgT = loadedImages[texT] || errorTexture;
+        drawFace(cx, imgT, true, id, meta);
+      } else {
+        var col = getColor(id, meta);
+        cx.fillStyle = "rgb(" + col[0] + "," + col[1] + "," + col[2] + ")";
+        cx.fillRect(0, 0, 16, 16);
+      }
+      return c;
+    }
+
+    function buildCaches() {
+      cubeCache = {};
+      tileCache = {};
+      for (var id = 1; id <= 255; id++) {
+        if (id === 17 || id === 18 || id === 5 || id === 43 || id === 44 || id === 98 || id === 126 || id === 158 || id === 171 || id === 35 || id === 27 || id === 2 || id === 78 || id === 92 || id === 6 || id === 59 || id === 85 || id === 107 || id === 24 || id === 155 || id === 26 || id === 31 || id === 53 || id === 67 || id === 108 || id === 109 || id === 114 || id === 128 || id === 134 || id === 135 || id === 136 || id === 156 || id === 141 || id === 142 || id === 244 || id === 104 || id === 105 || id === 60 || id === 96) {
+          for (var m = 0; m < 16; m++) {
+            cubeCache[id + "_" + m] = createCube(id, m);
+            tileCache[id + "_" + m] = createTile(id, m);
+          }
+        } else {
+          cubeCache[id + "_0"] = createCube(id, 0);
+          tileCache[id + "_0"] = createTile(id, 0);
+        }
+      }
+    }
+
+    document.getElementById("vmode").addEventListener("change", function (e) { viewMode = e.target.value; draw(); });
+    function panelW() { return window.innerWidth > 600 ? 200 : 0; }
+    function resize() { canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight; draw(); }
+
+    function w2c(wx, wz, wy) {
+      var cx = canvas.width / 2 + panX, cy = canvas.height / 2 + panY;
+      if (viewMode === "3d") {
+        wy = wy !== undefined ? wy : 64;
+        var zS = zoom / 2;
+        var px = (wx - viewCX) - (wz - viewCZ);
+        var pz = (wx - viewCX) + (wz - viewCZ);
+        return { x: cx + px * 16 * zS, y: cy + pz * 8 * zS - (wy - 64) * 16 * zS };
+      } else {
+        return { x: cx + (wx - viewCX) * zoom, y: cy + (wz - viewCZ) * zoom };
+      }
+    }
+
+    function c2w(cpx, cpy) {
+      var cx = canvas.width / 2 + panX, cy = canvas.height / 2 + panY;
+      if (viewMode === "3d") {
+        var zS = zoom / 2;
+        var relX = (cpx - cx) / zS;
+        var relY = (cpy - cy) / zS;
+        var isoX = relX / 32 + relY / 16;
+        var isoZ = relY / 16 - relX / 32;
+        return { x: isoX + viewCX, z: isoZ + viewCZ };
+      } else {
+        return { x: (cpx - cx) / zoom + viewCX, z: (cpy - cy) / zoom + viewCZ };
+      }
+    }
+
+    var lastMp = null;
+    function updateMasterBuffer(d) {
+      if (!d.mp || d.mp.length === 0) return;
+      if (d.mp === lastMp) return;
+      lastMp = d.mp;
+      var raw = atob(d.mp);
+      drawList = [];
+      var blockMap = {};
+      for (var i = 0; i < raw.length; i += 5) {
+        var ox = raw.charCodeAt(i), oz = raw.charCodeAt(i + 1), oy = raw.charCodeAt(i + 2), oid = raw.charCodeAt(i + 3);
+        blockMap[ox + "_" + oy + "_" + oz] = oid;
+      }
+      for (var i = 0; i < raw.length; i += 5) {
+        var ox = raw.charCodeAt(i), oz = raw.charCodeAt(i + 1), oy = raw.charCodeAt(i + 2), oid = raw.charCodeAt(i + 3);
+        var rawMeta = raw.charCodeAt(i + 4);
+        var ometa = rawMeta & 0x0f;
+        var oshade = (rawMeta >> 4) & 0x03;
+
+        if (oid === 85 || oid === 107) {
+           var nN = blockMap[ox + "_" + oy + "_" + (oz - 1)];
+           var nS = blockMap[ox + "_" + oy + "_" + (oz + 1)];
+           var nW = blockMap[(ox - 1) + "_" + oy + "_" + oz];
+           var nE = blockMap[(ox + 1) + "_" + oy + "_" + oz];
+           ometa = (nN ? 1 : 0) | (nS ? 2 : 0) | (nW ? 4 : 0) | (nE ? 8 : 0);
+        }
+
+        var key = oid + "_" + ometa;
+        var cube = cubeCache[key] || cubeCache[oid + "_0"] || cubeCache["1_0"];
+        drawList.push({ x: ox, z: oz, y: oy, id: oid, meta: ometa, shade: oshade, img: cube });
+      }
+      drawList.sort(function (a, b) { var dA = a.x + a.z, dB = b.x + b.z; if (dA !== dB) return dA - dB; return a.y - b.y; });
+
+      mapCanvas2D.width = 4096; mapCanvas2D.height = 4096;
+      mCtx2D.fillStyle = "#1a1a1a"; mCtx2D.fillRect(0, 0, 4096, 4096);
+      mCtx2D.imageSmoothingEnabled = false;
+
+      for (var i = 0; i < drawList.length; i++) {
+        var it = drawList[i];
+        var tileX = it.x * 16;
+        var tileZ = it.z * 16;
+        var key = it.id + "_" + it.meta;
+        var tile = tileCache[key] || tileCache[it.id + "_0"] || tileCache["1_0"];
+        mCtx2D.drawImage(tile, tileX, tileZ, 16, 16);
+
+        if (it.shade === 1) {
+          mCtx2D.fillStyle = "rgba(255, 255, 255, 0.12)";
+          mCtx2D.fillRect(tileX, tileZ, 16, 16);
+        } else if (it.shade === 2) {
+          mCtx2D.fillStyle = "rgba(0, 0, 0, 0.12)";
+          mCtx2D.fillRect(tileX, tileZ, 16, 16);
+        } else if (it.shade === 3) {
+          mCtx2D.fillStyle = "rgba(0, 0, 0, 0.30)";
+          mCtx2D.fillRect(tileX, tileZ, 16, 16);
+        }
+      }
+
+      for (var i = 0; i < 4; i++) {
+        for (var j = 0; j < 4; j++) {
+          var ctx3d = map3D[i][j].getContext("2d");
+          ctx3d.clearRect(0, 0, MAP3D_TILE_SIZE, MAP3D_TILE_SIZE);
+          ctx3d.imageSmoothingEnabled = false;
+        }
+      }
+
+      for (var i = 0; i < drawList.length; i++) {
+        var it = drawList[i];
+        var px = (it.x - 128) - (it.z - 128);
+        var pz = (it.x - 128) + (it.z - 128);
+        var rx = 4096 + px * 16 - 16;
+        var ry = 4096 + pz * 8 - (it.y - 64) * 16 - 16;
+
+        var tx1 = Math.floor(rx / MAP3D_TILE_SIZE);
+        var ty1 = Math.floor(ry / MAP3D_TILE_SIZE);
+        var tx2 = Math.floor((rx + 32) / MAP3D_TILE_SIZE);
+        var ty2 = Math.floor((ry + 32) / MAP3D_TILE_SIZE);
+
+        for (var tx = tx1; tx <= tx2; tx++) {
+          for (var ty = ty1; ty <= ty2; ty++) {
+            if (tx >= 0 && tx < 4 && ty >= 0 && ty < 4) {
+              map3D[tx][ty].getContext("2d").drawImage(it.img, rx - tx * MAP3D_TILE_SIZE, ry - ty * MAP3D_TILE_SIZE, 32, 32);
+            }
+          }
+        }
+      }
+
+      draw();
+    }
+
+    var drawScheduled = false;
+    function draw() {
+      if (!drawScheduled) {
+        drawScheduled = true;
+        requestAnimationFrame(function () {
+          drawScheduled = false;
+          realDraw();
+        });
+      }
+    }
+
+    function realDraw() {
+      ctx.fillStyle = "#1a1a1a"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+      if (viewMode === "3d") {
+        var cx = canvas.width / 2 + panX, cy = canvas.height / 2 + panY, zS = zoom / 2;
+        ctx.imageSmoothingEnabled = false;
+
+        var diffX = viewCX - 128;
+        var diffZ = viewCZ - 128;
+        var offsetX = (-diffX + diffZ) * 16 * zS;
+        var offsetY = (-diffX - diffZ) * 8 * zS;
+
+        for (var i = 0; i < 4; i++) {
+          for (var j = 0; j < 4; j++) {
+            var absX = i * MAP3D_TILE_SIZE - 4096;
+            var absY = j * MAP3D_TILE_SIZE - 4096;
+
+            var screenX = cx + absX * zS + offsetX;
+            var screenY = cy + absY * zS + offsetY;
+            var screenW = MAP3D_TILE_SIZE * zS;
+            var screenH = MAP3D_TILE_SIZE * zS;
+
+            if (screenX + screenW < 0 || screenX > canvas.width || screenY + screenH < 0 || screenY > canvas.height) continue;
+
+            ctx.drawImage(map3D[i][j], screenX, screenY, screenW, screenH);
+          }
+        }
+      } else {
+        var cx = canvas.width / 2 + panX, cy = canvas.height / 2 + panY;
+        var sx = cx + (0 - viewCX) * zoom;
+        var sy = cy + (0 - viewCZ) * zoom;
+        var w = 256 * zoom;
+        var h = 256 * zoom;
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(mapCanvas2D, sx, sy, w, h);
+
+        if (zoom >= 2) {
+          var gs = 16 * zoom;
+          var offX = ((cx % gs) + gs * 100) % gs, offZ = ((cy % gs) + gs * 100) % gs;
+          ctx.strokeStyle = "rgba(0,0,0,0.25)"; ctx.lineWidth = 1;
+          for (var gx = offX - gs; gx < canvas.width + gs; gx += gs) { ctx.beginPath(); ctx.moveTo(Math.round(gx), 0); ctx.lineTo(Math.round(gx), canvas.height); ctx.stroke(); }
+          for (var gy = offZ - gs; gy < canvas.height + gs; gy += gs) { ctx.beginPath(); ctx.moveTo(0, Math.round(gy)); ctx.lineTo(canvas.width, Math.round(gy)); ctx.stroke(); }
+        }
+      }
+
+      var o = w2c(0, 0, 64);
+      ctx.strokeStyle = "rgba(255,220,0,0.6)"; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(o.x - 8, o.y); ctx.lineTo(o.x + 8, o.y); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(o.x, o.y - 8); ctx.lineTo(o.x, o.y + 8); ctx.stroke();
+
+      if (data && data.pl) {
+        data.pl.forEach(function (p) {
+          var pos = w2c(p.x, p.z, p.y);
+          var r = Math.max(5, zoom + 2);
+          ctx.beginPath(); ctx.arc(pos.x, pos.y + 2, r, 0, Math.PI * 2); ctx.fillStyle = "rgba(0,0,0,0.35)"; ctx.fill();
+          ctx.beginPath(); ctx.arc(pos.x, pos.y, r, 0, Math.PI * 2); ctx.fillStyle = "#e74c3c"; ctx.fill();
+          ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.5; ctx.stroke();
+          var fs = 11; ctx.font = "bold " + fs + "px Arial,sans-serif";
+          var tw = ctx.measureText(p.name).width;
+          ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fillRect(pos.x + r + 2, pos.y - fs + 5, tw + 4, fs + 2);
+          ctx.fillStyle = "#fff"; ctx.fillText(p.name, pos.x + r + 4, pos.y + 4);
+        });
+      }
+    }
+
+    function setZoom(z) { zoom = Math.max(1, Math.min(12, Math.round(z))); document.getElementById("zval").textContent = zoom + "x"; draw(); }
+    function setDot(ok) { document.getElementById("dot").className = ok ? "dot ok" : "dot"; }
+    function centerOnPlayers() {
+      if (!data || !data.pl || data.pl.length === 0) return;
+      var sx = 0, sz = 0; data.pl.forEach(function (p) { sx += p.x; sz += p.z; });
+      viewCX = sx / data.pl.length; viewCZ = sz / data.pl.length; panX = 0; panY = 0;
+    }
+
+    var currentWorld = null;
+    var knownWorlds = [];
+
+    document.getElementById("world-select").addEventListener("change", function(e) {
+      if (e.target.value !== currentWorld) {
+        currentWorld = e.target.value;
+        fetchMapData(true);
+      }
+    });
+
+    function fetchWorlds(isFirst) {
+      fetch("worlds.json?_=" + Date.now()).then(function (r) { if (!r.ok) throw r.status; return r.json(); }).then(function (w) {
+        if (!Array.isArray(w) || w.length === 0) return;
+        knownWorlds = w;
+
+        var sel = document.getElementById("world-select");
+        if (w.length > 1) {
+          sel.style.display = "inline-block";
+          document.getElementById("wname").style.display = "none";
+          sel.innerHTML = "";
+          w.forEach(function(wn) {
+            var opt = document.createElement("option");
+            opt.value = wn; opt.textContent = wn;
+            if (wn === currentWorld) opt.selected = true;
+            sel.appendChild(opt);
+          });
+        } else {
+          sel.style.display = "none";
+          document.getElementById("wname").style.display = "inline";
+          document.getElementById("wname").textContent = w[0];
+        }
+
+        if (isFirst || !currentWorld || w.indexOf(currentWorld) === -1) {
+          currentWorld = w[0];
+          fetchMapData(true);
+        } else {
+          fetchMapData(false);
+        }
+      }).catch(function (e) {
+        if (!currentWorld) {
+          currentWorld = "";
+          fetchMapData(true);
+        }
+      });
+    }
+
+    function fetchMapData(isFirst) {
+      var mapUrl = currentWorld ? "mapdata_" + currentWorld + ".json" : "mapdata.json";
+      fetch(mapUrl + "?_=" + Date.now()).then(function (r) { if (!r.ok) throw r.status; return r.json(); }).then(function (d) {
+        if (!data) data = {};
+        data.mp = d.mp;
+        data.lv = d.lv;
+        if (isFirst) {
+          fetchPlayerData(true);
+        } else {
+          updateMasterBuffer(data);
+          draw();
+        }
+      }).catch(function (e) { setDot(false); document.getElementById("stxt").textContent = "Error"; });
+    }
+
+    function fetchPlayerData(isFirst) {
+      var plUrl = currentWorld ? "players_" + currentWorld + ".json" : "players.json";
+      fetch(plUrl + "?_=" + Date.now()).then(function (r) { if (!r.ok) throw r.status; return r.json(); }).then(function (d) {
+        if (!data) data = {};
+        data.pl = d.pl;
+
+        if (isFirst) {
+          if (data.pl && data.pl.length > 0) {
+            var sx = 0, sz = 0; data.pl.forEach(function (p) { sx += p.x; sz += p.z; });
+            viewCX = sx / data.pl.length; viewCZ = sz / data.pl.length;
+          } else { viewCX = 128; viewCZ = 128; }
+          panX = 0; panY = 0;
+          updateMasterBuffer(data);
+        } else if (followPlayers && data.pl && data.pl.length > 0) {
+          centerOnPlayers();
+        }
+
+        setDot(true); document.getElementById("stxt").textContent = "Online";
+        var n = data.pl ? data.pl.length : 0; document.getElementById("pc").textContent = "(" + n + ")";
+        var list = document.getElementById("plist"); list.innerHTML = "";
+        if (n === 0) { list.innerHTML = '<div class="no-p">No players online</div>'; } else {
+          data.pl.forEach(function (p) {
+            var row = document.createElement("div"); row.className = "prow";
+            row.innerHTML = '<div class="pdot"></div><div><div class="pname">' + p.name + '</div><div class="pxyz">' + Math.round(p.x) + ', ' + Math.round(p.y) + ', ' + Math.round(p.z) + '</div></div>';
+            row.addEventListener("click", function () { viewCX = p.x; viewCZ = p.z; panX = 0; panY = 0; followPlayers = false; document.getElementById("btn-follow").textContent = "Follow Players"; draw(); });
+            list.appendChild(row);
+          });
+        }
+        var now = new Date(); document.getElementById("lu").textContent = now.getHours().toString().padStart(2, "0") + ":" + now.getMinutes().toString().padStart(2, "0") + ":" + now.getSeconds().toString().padStart(2, "0");
+
+        if (!isFirst) draw(); // Only trigger draw here if it's an interval update, since map update handles full re-buffer
+      }).catch(function (e) { setDot(false); document.getElementById("stxt").textContent = "Error"; });
+    }
+
+    document.getElementById("btn-follow").addEventListener("click", function () { followPlayers = !followPlayers; this.textContent = followPlayers ? "Following..." : "Follow Players"; if (followPlayers && data) { centerOnPlayers(); draw(); } });
+    var ssMenu = document.getElementById("screenshot-menu");
+    document.getElementById("btn-screenshot").addEventListener("click", function (e) {
+      e.stopPropagation();
+      ssMenu.style.display = ssMenu.style.display === "none" ? "block" : "none";
+    });
+    document.addEventListener("click", function () {
+      ssMenu.style.display = "none";
+    });
+    var ssOpts = document.querySelectorAll(".ss-opt");
+    for (var k = 0; k < ssOpts.length; k++) {
+      ssOpts[k].addEventListener("click", function () {
+        var type = this.getAttribute("data-type");
+        var a = document.createElement("a");
+        if (type === "view") {
+          a.href = canvas.toDataURL("image/png");
+          a.download = "dynmap_" + viewMode + "_view_" + Date.now() + ".png";
+        } else {
+          if (viewMode === "3d") {
+            var fc = document.createElement("canvas");
+            fc.width = 8192; fc.height = 8192;
+            var fctx = fc.getContext("2d");
+            fctx.fillStyle = "#1a1a1a"; fctx.fillRect(0, 0, 8192, 8192);
+            for (var i = 0; i < 4; i++) {
+              for (var j = 0; j < 4; j++) {
+                fctx.drawImage(map3D[i][j], i * MAP3D_TILE_SIZE, j * MAP3D_TILE_SIZE);
+              }
+            }
+            a.href = fc.toDataURL("image/png");
+          } else {
+            a.href = mapCanvas2D.toDataURL("image/png");
+          }
+          a.download = "dynmap_" + viewMode + "_full_" + Date.now() + ".png";
+        }
+        a.click();
+      });
+    }
+    canvas.addEventListener("mousedown", function (e) { drag = true; dsx = e.clientX; dsy = e.clientY; dpx = panX; dpy = panY; followPlayers = false; document.getElementById("btn-follow").textContent = "Follow Players"; canvas.classList.add("drag"); });
+    window.addEventListener("mousemove", function (e) {
+      if (drag) { panX = dpx + e.clientX - dsx; panY = dpy + e.clientY - dsy; draw(); }
+      var w = c2w(e.clientX - panelW(), e.clientY - 36); document.getElementById("hud").textContent = "X " + Math.round(w.x) + " \u00a0 Z " + Math.round(w.z);
+    });
+    window.addEventListener("mouseup", function () { drag = false; canvas.classList.remove("drag"); });
+    canvas.addEventListener("wheel", function (e) {
+      e.preventDefault(); var before = c2w(e.clientX - panelW(), e.clientY - 36); setZoom(zoom + (e.deltaY < 0 ? 1 : -1)); var after = c2w(e.clientX - panelW(), e.clientY - 36);
+      if (viewMode === "3d") { panX += (after.x - before.x) * (zoom / 2) * 16; panY += (after.z - before.z) * (zoom / 2) * 8; } else { panX += (after.x - before.x) * zoom; panY += (after.z - before.z) * zoom; } draw();
+    }, { passive: false });
+    document.getElementById("zp").addEventListener("click", function () { setZoom(zoom + 1); }); document.getElementById("zm").addEventListener("click", function () { setZoom(zoom - 1); });
+    var t0 = null, t1 = null, pd0 = 0, pz0 = 0;
+    canvas.addEventListener("touchstart", function (e) { e.preventDefault(); if (e.touches.length === 1) { drag = true; dsx = e.touches[0].clientX; dsy = e.touches[0].clientY; dpx = panX; dpy = panY; followPlayers = false; } else if (e.touches.length === 2) { drag = false; pd0 = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); pz0 = zoom; } }, { passive: false });
+    canvas.addEventListener("touchmove", function (e) { e.preventDefault(); if (e.touches.length === 1 && drag) { panX = dpx + e.touches[0].clientX - dsx; panY = dpy + e.touches[0].clientY - dsy; draw(); } else if (e.touches.length === 2) { setZoom(pz0 * Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY) / pd0); } }, { passive: false });
+    canvas.addEventListener("touchdown", function () { drag = false; });
+    window.addEventListener("resize", resize);
+    resize();
+  </script>
+</body>
+
+</html>
