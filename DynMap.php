@@ -134,7 +134,7 @@ class DynMap implements Plugin {
     }
 
     public function init() {
-        $this->outputDir = "/var/www/html/map/";
+        $this->outputDir = "/var/www/html/map/"; // <--- path to website
         if (!is_dir($this->outputDir)) {
             @mkdir($this->outputDir, 0755, true);
         }
